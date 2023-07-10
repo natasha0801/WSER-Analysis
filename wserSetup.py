@@ -6,7 +6,7 @@ import pandas as pd
 ### GLOBAL VARIABLES
 hostName = 'localhost'
 userName = 'root'
-password = 'pbColdBrew259'      # TODO: add placeholder here
+password = 'password123'
 databaseName = 'WSER2023'   # name of overall database
 # aidStations = ["Finish", "LyonRidge", "RedStarRidge", "DuncanCanyon", "RobinsonFlat", "MillersDefeat", "DustyCorners", "LastChance", "DevilsThumb", "ElDorado", "MichiganBluff", "Foresthill", "Peachstone", "FordsBar", "RuckyChucky", "GreenGate", "LakeTrails", "QuarryRoad", "PointedRocks", "RobiePt"]
 aidStationDetails = {
@@ -57,6 +57,7 @@ def createDatabase(connection, databaseName):
         print("Database created successfully")
     except Error as err:
         print(f"Error: '{err}'")
+    cursor.close()
 
 # Connects to MySQL server (specific database)
 def createDatabaseConnection(hostName, userName, userPass, db):
@@ -82,6 +83,7 @@ def executeQuery(connection, query):
         connection.commit()
     except Error as err:
         print(f"Error: '{err}'")
+    cursor.close()
 
 # Reads a query
 def readQuery(connection, query):
@@ -93,6 +95,7 @@ def readQuery(connection, query):
         return result
     except Error as err:
         print(f"Error: '{err}'")
+    cursor.close()
 
 # Splits a time (as a string) into hh, mm, ss integers
 def formatTime(timeStr):
@@ -181,6 +184,4 @@ def createAndPopulateDatabase():
                                     str(ss)])
                 executeQuery(connection, insertIntoSplits(station, splitdata))
     ### CLEANUP
-
-    
     connection.close()
