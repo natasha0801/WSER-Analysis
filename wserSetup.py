@@ -8,7 +8,6 @@ hostName = 'localhost'
 userName = 'root'
 password = 'password123'
 databaseName = 'WSER2023'   # name of overall database
-# aidStations = ["Finish", "LyonRidge", "RedStarRidge", "DuncanCanyon", "RobinsonFlat", "MillersDefeat", "DustyCorners", "LastChance", "DevilsThumb", "ElDorado", "MichiganBluff", "Foresthill", "Peachstone", "FordsBar", "RuckyChucky", "GreenGate", "LakeTrails", "QuarryRoad", "PointedRocks", "RobiePt"]
 aidStationDetails = {
     "LyonRidge": 10.3,
     "RedStarRidge": 15.8,
@@ -134,7 +133,7 @@ def createAndPopulateDatabase():
     );
     """
     createSplitTable = lambda splitName: """
-    CREATE TABLE split_{} (
+    CREATE TABLE split_{}_{} (
         place INT NOT NULL,
         bib VARCHAR(4) PRIMARY KEY,
         location VARCHAR(40),

@@ -85,8 +85,6 @@ def finishTimeDistributionByBins():
 
         # display results
         binLabels[i] = "{}-{}".format(lowerBin, upperBin)
-        print("{} Hours".format(binLabels[i]))
-        print("M: {}        F: {}".format(maleBins[i], femaleBins[i]))
 
     # Plot results
     xAxis = np.arange(numBins)
@@ -218,6 +216,8 @@ def pacingEntireField(gender='%', plotOutput=False):
             title = 'WSER 2023 Pacing \n Entire {} Field'.format(gender)
         plotPaceDistribution(title, Elapsed=[mileMarkers,averageOverallPace], Split=[mileMarkers,averageSplitPace])
 
+    return mileMarkers, averageOverallPace, averageSplitPace
+
 # Returns a subset of field as dataframe
 # args: SQL "WHERE" clauses (i.e. ..."gender LIKE 'F'" or "hours < 24")
 def finishersDataframe(*args):
@@ -238,6 +238,56 @@ def finishersDataframe(*args):
     columns = ['firstName', 'lastName', 'age', 'gender', 'place', 'hours', 'minutes', 'seconds']
     return pd.DataFrame(finishersList, columns=columns)
 
+# Distribution of finish times by age
+def distributionByAge(numBins=10):
+
+    # Set up bins
+    minAge = readQuery(connection, "SELECT MIN(age) FROM participants")[0][0]
+    maxAge = readQuery(connection, "SELECT MAX(age) FROM participants")[0][0]
+    print("min age: {}".format(minAge))
+    print("max age: {}".format(maxAge))
+    binSize = np.ceil((maxAge - minAge) / numBins)
+    binLimits = np.arange(minAge - np.floor(binSize/2), maxAge + np.ceil(binSize/2), binSize, dtype=int)     # age group bins
+    meanHrsM = np.zeros(numBins)                      # store average times (M finishers)
+    meanHrsW = np.zeros(numBins)                      # store average times (W finishers)
+    binLabels = [""] * numBins
+
+    # Get participants in each bin
+    queryByAgeAndGender = lambda min, max, gender: """
+        SELECT AVG(hours), AVG(minutes), AVG(seconds), COUNT(*)
+        FROM split_finish
+        JOIN participants
+            ON participants.bib LIKE split_finish.bib
+        WHERE participants.age >= {} AND participants.age < {} AND participants.gender LIKE '{}';
+    """.format(min, max, gender)
+
+    for i in range(0, numBins):
+        results_m = readQuery(connection, queryByAgeAndGender(binLimits[i], binLimits[i+1], 'M'))
+        results_w = readQuery(connection, queryByAgeAndGender(binLimits[i], binLimits[i+1], 'F'))
+        hm, mm, sm, cm = results_m[0][0], results_m[0][1], results_m[0][2], results_m[0][3]
+        hw, mw, sw, cw = results_w[0][0], results_w[0][1], results_w[0][2], results_w[0][3]
+
+        if float(cm) != 0:
+            meanHrsM[i] = fractionalHours(float(hm), float(mm), float(sm))
+        else:
+            meanHrsM[i] = 0
+        if float(cw) != 0:
+            meanHrsW[i] = fractionalHours(float(hw), float(mw), float(sw))
+        else:
+            meanHrsW[i] = 0
+        binLabels[i] = "{}-{}".format(binLimits[i], binLimits[i+1]-1)
+
+    # Plot results
+    xAxis = np.arange(numBins)
+    plt.bar(xAxis - 0.2, meanHrsW, 0.4, label='F')
+    plt.bar(xAxis + 0.2, meanHrsM, 0.4, label='M')
+    plt.xticks(xAxis, binLabels)
+    plt.xlabel('Age')
+    plt.ylabel('Mean Finish Time')
+    plt.title('WSER Finish Time By Age')
+    plt.legend()
+    plt.show()
+
 ### MAIN SCRIPT
 
 # User interface
@@ -248,7 +298,8 @@ print("(2) Lookup Entire Field")
 print("(3) Compare Participant to Field")
 print("(4) Plot Distribution of Finish Times")
 print("(5) Lookup a Subset of Field")
-
+print("(6) Finish Times By Age")
+print("(7) Compare Two Participants")
 cmd1 = str.strip(input(" > "))
 
 # Operational modes
@@ -266,7 +317,7 @@ match cmd1:
             pacingEntireField(gender=gender, plotOutput=True)
         else:
             pacingEntireField(plotOutput=True)
-    
+
     # Compare participant to field
     case "3":
         bib = str.strip(input("Enter bib number > "))
@@ -274,18 +325,18 @@ match cmd1:
         idvMiles, idvElapsed, idvSplit = pacingIndividualParticipant(bib)
         plotTitle = 'Compare Bib {} to Entire {} Field'.format(bib, gender)
 
-        if (gender != 'M' and gender != 'F'):
-            gender='%'
+        if ("M" not in gender and "F" not in gender):
+            gender = "%"
         oaMiles, oaElapsed, oaSplit = pacingEntireField(gender=gender)
 
         plotPaceDistribution(plotTitle, IndividualElapsedPace=[idvMiles, idvElapsed],
                                         IndividualSplitPace=[idvMiles, idvSplit],
                                         OverallElapsedPace=[oaMiles, oaElapsed],
-                                        overallSplitpace=[oaMiles, oaSplit])
-    
+                                        overallSplitPace=[oaMiles, oaSplit])
+
     # Plot finish time distribution
     case "4":
-       finishTimeDistributionByBins()
+        finishTimeDistributionByBins()
 
     # Get statistical summary of a subset of field
     case "5":
@@ -294,9 +345,27 @@ match cmd1:
         display(df)
         display(df.describe())
 
+    # Finish time by age
+    case "6":
+        numBins = int(input("Enter number of age bins > "))
+        distributionByAge(numBins)
+
+    # Compare participants
+    case "7":
+        bib1 = str.strip(input("Enter first bib number > "))
+        bib2 = str.strip(input("Enter second bib number > "))
+        mi1, elapsed1, split1 = pacingIndividualParticipant(bib1)
+        mi2, elapsed2, split2 = pacingIndividualParticipant(bib2)
+        name1 = readQuery(connection, "SELECT lastName FROM participants WHERE participants.bib LIKE {}".format(bib1))
+        name2 = readQuery(connection, "SELECT lastName FROM participants WHERE participants.bib LIKE {}".format(bib2))
+        plotTitle = 'WSER Pacing: (1) {} and (2) {}'.format(name1[0], name2[0])
+        plotPaceDistribution(plotTitle, ElapsedPace1=[mi1, elapsed1],
+                             SplitPace1=[mi1, split1],
+                             ElapsedPace2=[mi2, elapsed2],
+                             SplitPace2=[mi2, split2])
+
     case _:
         print("Not a valid input.")
-    
 
 ### CLEANUP
 connection.close()
