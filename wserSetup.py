@@ -7,7 +7,7 @@ import pandas as pd
 hostName = 'localhost'
 userName = 'root'
 password = 'password123'
-databaseName = 'WSER2023'   # name of overall database
+databaseName = 'WesternStatesEnduranceRun2023'   # name of overall database
 aidStationDetails = {
     "LyonRidge": 10.3,
     "RedStarRidge": 15.8,
@@ -133,7 +133,7 @@ def createAndPopulateDatabase():
     );
     """
     createSplitTable = lambda splitName: """
-    CREATE TABLE split_{}_{} (
+    CREATE TABLE split_{} (
         place INT NOT NULL,
         bib VARCHAR(4) PRIMARY KEY,
         location VARCHAR(40),
@@ -184,3 +184,5 @@ def createAndPopulateDatabase():
                 executeQuery(connection, insertIntoSplits(station, splitdata))
     ### CLEANUP
     connection.close()
+
+con = createServerConnection(hostName, userName, password)
