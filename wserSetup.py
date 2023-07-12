@@ -42,9 +42,8 @@ def createServerConnection(hostName, userName, userPass):
             user=userName,
             passwd=userPass
         )
-        print("MySQL Server connection successful")
     except Error as err:
-        print(f"Error: '{err}'")
+        print(f"Error connecting to server: '{err}'")
 
     return connection
 
@@ -55,7 +54,7 @@ def createDatabase(connection, databaseName):
         cursor.execute("CREATE DATABASE " + databaseName)
         print("Database created successfully")
     except Error as err:
-        print(f"Error: '{err}'")
+        print(f"Error creating database: '{err}'")
     cursor.close()
 
 # Connects to MySQL server (specific database)
@@ -68,9 +67,8 @@ def createDatabaseConnection(hostName, userName, userPass, db):
             passwd=userPass,
             database=db
         )
-        print("MySQL Database connection successful")
     except Error as err:
-        print(f"Error: '{err}'")
+        print(f"Error connecting to database: '{err}'")
 
     return connection
 
@@ -81,7 +79,7 @@ def executeQuery(connection, query):
         cursor.execute(query)
         connection.commit()
     except Error as err:
-        print(f"Error: '{err}'")
+        print(f"Error executing query: '{err}'")
     cursor.close()
 
 # Reads a query
@@ -93,7 +91,7 @@ def readQuery(connection, query):
         result = cursor.fetchall()
         return result
     except Error as err:
-        print(f"Error: '{err}'")
+        print(f"Error reading query: '{err}'")
     cursor.close()
 
 # Splits a time (as a string) into hh, mm, ss integers
@@ -184,5 +182,3 @@ def createAndPopulateDatabase():
                 executeQuery(connection, insertIntoSplits(station, splitdata))
     ### CLEANUP
     connection.close()
-
-con = createServerConnection(hostName, userName, password)

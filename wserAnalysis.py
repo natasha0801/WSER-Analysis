@@ -30,15 +30,20 @@ def calculatePace(miles, hours):
 
 # Plot pacing over course of race
 # Title --> title of plot
-# kwargs should be 2D arrays of [milemarkers, paces]
+# kwargs should be 2D arrays of [label, milemarkers, paces]
 def plotPaceDistribution(title, **kwargs):
 
     linestyles = ['-', '--']
-    currentLinestyle = 0
+    colors = plt.cm.rainbow(np.linspace(0, 1, 10))
+    colorCounter = 0
+    linestyleCounter = 1
 
-    for label, markers in kwargs.items():
-        plt.plot(markers[0], markers[1], label=label, linestyle=linestyles[currentLinestyle])
-        currentLinestyle = (1 - currentLinestyle)
+    for key, values in kwargs.items():
+        plt.plot(values[1], values[2], label=values[0], linestyle=linestyles[linestyleCounter],
+                 color=colors[colorCounter], linewidth=0.8)
+        linestyleCounter = 1 - linestyleCounter
+        colorCounter = (colorCounter + (7*linestyleCounter)) % 10
+
     plt.xlabel('Miles')
     plt.ylabel('Mile Pace (minutes)')
     plt.grid()
@@ -69,9 +74,6 @@ def finishTimeDistributionByBins():
     maleBins = np.zeros(numBins)              # number of male finishers in each bin
     femaleBins = np.zeros(numBins)            # number of female finishers in each bin
     binLabels = [None] * numBins              # bin labels
-
-    print("NUMBER OF FINISHERS IN HOURLY BINS")
-    print("----------------------------------")
 
     for i in range(0, numBins):
 
@@ -109,51 +111,18 @@ def pacingIndividualParticipant(searchTerm, plotOutput=False):
     overallTime = []    # elapsed time (hours) for the entire race at each mile marker
     elapsedPace = []    # average pace (minutes) for entire race at each mile marker
     splitPace   = []    # average pace (minutes) between mile markers
-    firstName = ""
-    lastName = ""
-    bibNumber = ""
 
-    # User entered a bib number if search term contains numeric digits 0 - 9; otherwise lookup by name
-    splitQuery = ""
-    infoQuery = ""
-    if searchTerm.isalpha() == False:
-        splitQuery = lambda aidStationName: """
-            SELECT hours, minutes, seconds
-            FROM split_{}
-            WHERE split_{}.bib LIKE '{}';""".format(aidStationName, aidStationName, searchTerm)
-        infoQuery = """
-            SELECT firstName, lastName, bib
-            FROM participants
-            WHERE participants.bib LIKE '{}'""".format(searchTerm)
-    else:
-        nameSearch = ""
-        firstAndLast = searchTerm.split(" ")
-        print(firstAndLast)
-        if len(firstAndLast) == 2:
-            nameSearch = "WHERE participants.lastName LIKE '{}' OR participants.firstName LIKE '{}'".format(str(firstAndLast[1]), str(firstAndLast[0]))
-        else:
-            nameSearch = "WHERE participants.lastName LIKE '{}' OR participants.firstName LIKE '{}'".format(str(firstAndLast[0]), str(firstAndLast[0]))
-
-        splitQuery = lambda aidStationName: """
-            SELECT hours, minutes, seconds
-            FROM split_{}
-            JOIN participants
-                ON participants.bib = split_{}.bib
-            {}""".format(aidStationName, aidStationName, nameSearch)
-        infoQuery = """
-            SELECT firstName, lastName, bib
-            FROM participants
-            {}""".format(nameSearch)
-
-    # Get participant basic info
-    basicInfo = readQuery(connection, infoQuery)
-    if (len(basicInfo) != 0):
-        firstName = basicInfo[0][0]
-        lastName = basicInfo[0][1]
-        bibNumber = basicInfo[0][2]
-    else:
-        print("Participant not found.")
+    # Get some participant info
+    try:
+        firstName, lastName, bibNumber = nameAndBibNumber(searchTerm)
+    except:
+        print("Cannot find participant by search terms {}".format(searchTerm))
         return
+
+    splitQuery = lambda aidStationName: """
+        SELECT hours, minutes, seconds
+        FROM split_{}
+        WHERE split_{}.bib LIKE '{}';""".format(aidStationName, aidStationName, bibNumber)
 
     # Get split at each aid station
     for i, aidStationName in enumerate(aidStations):
@@ -178,8 +147,10 @@ def pacingIndividualParticipant(searchTerm, plotOutput=False):
                 splitPace.append(calculatePace(mileMarkers[-1] - mileMarkers[-2], overallTime[-1] - overallTime[-2]))
 
     # Plot results
-    if (plotOutput):
-        plotPaceDistribution('WSER 2023 Pacing\n Bib #{}: {} {}'.format(bibNumber, firstName, lastName), Elapsed=[mileMarkers,elapsedPace], Split=[mileMarkers, splitPace])
+    if plotOutput:
+        plotPaceDistribution('WSER 2023 Pacing\n Bib #{}: {} {}'.format(bibNumber, firstName, lastName),
+                             Elapsed=['Elapsed', mileMarkers,elapsedPace],
+                             Split=['Split', mileMarkers, splitPace])
 
     connection.close()
 
@@ -236,7 +207,6 @@ def pacingEntireField(gender='%', plotOutput=False):
                 numDatapointsOverall[i] = numDatapointsOverall[i] + 1
 
                 # if participant has non-null results at both current AND prev aid station, add that to split pacing
-                # TODO: figure out how to make this more computationally efficient
                 if i == 0:
                     averageSplitPace[i] = averageSplitPace[i] + participantOverallPace
                     numDatapointsSplit[i] = numDatapointsSplit[i] + 1
@@ -262,7 +232,8 @@ def pacingEntireField(gender='%', plotOutput=False):
             title = 'WSER 2023 Pacing\n Entire Field'
         else:
             title = 'WSER 2023 Pacing \n Entire {} Field'.format(gender)
-        plotPaceDistribution(title, Elapsed=[mileMarkers,averageOverallPace], Split=[mileMarkers,averageSplitPace])
+        plotPaceDistribution(title, Elapsed=['Elapsed', mileMarkers,averageOverallPace],
+                             Split=['Split', mileMarkers,averageSplitPace])
 
     return mileMarkers, averageOverallPace, averageSplitPace
 
@@ -343,6 +314,45 @@ def distributionByAge(numBins=10):
     plt.legend()
     plt.show()
 
+# Gets participant name and bib number from either bib, first name, or last name
+def nameAndBibNumber(searchTerm):
+
+    connection = createDatabaseConnection(hostName, userName, password, databaseName)
+    infoQuery = ""
+
+    # User entered a bib number if search term contains numeric digits 0 - 9; otherwise lookup by name
+    if not (" " in searchTerm) and not searchTerm.isalpha():
+        infoQuery = """
+            SELECT firstName, lastName, bib
+            FROM participants
+            WHERE participants.bib LIKE '{}'""".format(searchTerm)
+    else:
+        firstAndLast = searchTerm.split(" ")
+        if len(firstAndLast) == 2:
+            infoQuery = """
+            SELECT firstName, lastName, bib
+            FROM participants
+            WHERE participants.lastName LIKE '{}' 
+            AND participants.firstName LIKE '{}'""".format(str(firstAndLast[1]), str(firstAndLast[0]))
+        else:
+            infoQuery = """
+            SELECT firstName, lastName, bib
+            FROM participants
+            WHERE participants.lastName LIKE '{}' 
+            OR participants.firstName LIKE '{}'""".format(str(firstAndLast[0]), str(firstAndLast[0]))
+
+    # Get participant basic info
+    basicInfo = readQuery(connection, infoQuery)
+    connection.close()
+    if (len(basicInfo) != 0):
+        firstName = basicInfo[0][0]
+        lastName = basicInfo[0][1]
+        bibNumber = basicInfo[0][2]
+        return firstName, lastName, bibNumber
+    else:
+        print("Participant not found.")
+        return
+
 ### MAIN SCRIPT
 def main():
 
@@ -357,16 +367,16 @@ def main():
     print("***********************")
 
     # Main loop
-    while (exit == False):
+    while not exit:
         print("MAIN MENU")
         print("***********************")
         print("(1) Lookup a Single Participant")
         print("(2) Lookup Entire Field")
         print("(3) Compare Participant to Field")
-        print("(4) Plot Distribution of Finish Times")
-        print("(5) Lookup a Subset of Field")
-        print("(6) Finish Times By Age")
-        print("(7) Compare Two Participants")
+        print("(4) Compare Two Participants")
+        print("(5) Plot Distribution of Finish Times")
+        print("(6) Lookup a Subset of Field")
+        print("(7) Finish Times By Age")
         print("(8) Exit")
         cmd = str.strip(input(" > "))
 
@@ -375,8 +385,8 @@ def main():
 
             # Lookup a single participant
             case "1":
-                bib = str.strip(input("Enter first name, last name, or bib number > "))
-                pacingIndividualParticipant(bib, plotOutput=True)
+                searchTerm = str.strip(input("Enter first name, last name, or bib number > "))
+                pacingIndividualParticipant(searchTerm, plotOutput=True)
 
             # Lookup entire field
             case "2":
@@ -387,54 +397,72 @@ def main():
 
             # Compare participant to field
             case "3":
-                bib = str.strip(input("Enter first name, last name, or bib number > "))
+                idvSearch = str.strip(input("Enter first name, last name, or bib number > "))
+                idvMiles, idvElapsed, idvSplit = pacingIndividualParticipant(idvSearch)
+                idvFirst, idvLast, idvBib = nameAndBibNumber(idvSearch)
+
                 gender = str.strip(input("Enter gender M or F, or ENTER for entire field > "))
-                plotTitle = 'Compare Bib {} to Entire {} Field'.format(bib, gender)
                 if ("M" not in gender and "F" not in gender):
                     gender = "%"
-                idvMiles, idvElapsed, idvSplit = pacingIndividualParticipant(bib)
+                    title = 'Compare {} {} (Bib {}) to Entire Field'.format(idvFirst, idvLast, idvBib)
+                else:
+                    title = 'Compare {} {} (Bib {}) to Entire {} Field'.format(idvFirst, idvLast, idvBib, gender)
+
                 oaMiles, oaElapsed, oaSplit = pacingEntireField(gender=gender)
-                plotPaceDistribution(plotTitle, IndividualElapsedPace=[idvMiles, idvElapsed],
-                                                IndividualSplitPace=[idvMiles, idvSplit],
-                                                OverallElapsedPace=[oaMiles, oaElapsed],
-                                                overallSplitPace=[oaMiles, oaSplit])
+
+                plotPaceDistribution(title, IndividualElapsedPace=['{} Elapsed'.format(idvLast), idvMiles, idvElapsed],
+                                            IndividualSplitPace=['{} Split'.format(idvLast), idvMiles, idvSplit],
+                                            OverallElapsedPace=['Field Average Elapsed', oaMiles, oaElapsed],
+                                            OverallSplitPace=['Field Average Split', oaMiles, oaSplit])
+
+            # Compare participants
+            case "4":
+                search1 = str.strip(input("Enter first name or bib number > "))
+                search2 = str.strip(input("Enter second name or bib number > "))
+                try:
+                    mi1, elapsed1, split1 = pacingIndividualParticipant(search1)
+                    first1, last1, bib1 = nameAndBibNumber(search1)
+                except:
+                    print("Cannot find participant by search terms {}".format(search1))
+                try:
+                    mi2, elapsed2, split2 = pacingIndividualParticipant(search2)
+                    first2, last2, bib2 = nameAndBibNumber(search2)
+                except:
+                    print("Cannot find participant by search terms {}".format(search2))
+                plotTitle = 'WSER Pacing: {} (Bib {}) and {} (Bib {})'.format(last1, bib1, last2, bib2)
+                plotPaceDistribution(plotTitle, ElapsedPace1=['{} Elapsed'.format(last1), mi1, elapsed1],
+                                     SplitPace1=['{} Split'.format(last1), mi1, split1],
+                                     ElapsedPace2=['{} Elapsed'.format(last2), mi2, elapsed2],
+                                     SplitPace2=['{} Split'.format(last2), mi2, split2])
 
             # Plot finish time distribution
-            case "4":
+            case "5":
                 finishTimeDistributionByBins()
 
             # Get statistical summary of a subset of field
-            case "5":
-                args = input("Enter SQL WHERE clauses for search parameters > ")
+            case "6":
+                args = str.strip(input("Enter SQL search parameters > "))   # user inputs end of "where" clause
+                if "WHERE" in args:                           # but we design in case user types "WHERE" anyway
+                    args = str.strip(args[5:])
                 df = finishersDataframe(args)
                 display(df)
                 display(df.describe())
 
             # Finish time by age
-            case "6":
+            case "7":
                 numBins = int(input("Enter number of age bins > "))
                 distributionByAge(numBins)
 
-            # Compare participants
-            case "7":
-                bib1 = str.strip(input("Enter first name or bib number > "))
-                bib2 = str.strip(input("Enter second name or bib number > "))
-                mi1, elapsed1, split1 = pacingIndividualParticipant(bib1)
-                mi2, elapsed2, split2 = pacingIndividualParticipant(bib2)
-                plotTitle = 'WSER Pacing: (1) {} and (2) {}'.format(bib1, bib2)
-                plotPaceDistribution(plotTitle, ElapsedPace1=[mi1, elapsed1],
-                                     SplitPace1=[mi1, split1],
-                                     ElapsedPace2=[mi2, elapsed2],
-                                     SplitPace2=[mi2, split2])
             case "8":
                 print("Exiting program.")
                 exit = True
             case _:
                 print("Not a valid input.")
                 exit = True
+        print("***********************")
 
 
 if __name__ == "main":
     main()
 
-main()
+main()      # debug only
