@@ -3,9 +3,10 @@ import mysql.connector
 from mysql.connector import Error
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import pandas as pd
 from wserSetup import *
-from IPython.display import display
+from cycler import cycler
 
 ### "HELPER" FUNCTIONS
 
@@ -29,26 +30,31 @@ def calculatePace(miles, hours):
     return 60.0 * hours / miles
 
 # Plot pacing over course of race
-# Title --> title of plot
-# kwargs should be 2D arrays of [label, milemarkers, paces]
-def plotPaceDistribution(title, **kwargs):
+def plotPaceDistribution(title, labels, x, y):
 
-    linestyles = ['-', '--']
-    colors = plt.cm.rainbow(np.linspace(0, 1, 10))
-    colorCounter = 0
-    linestyleCounter = 1
+    if len(x) != len(y) or len(labels) != len(x):
+        print("Error plotting results - unequal number of x-y values and labels")
+        return
 
-    for key, values in kwargs.items():
-        plt.plot(values[1], values[2], label=values[0], linestyle=linestyles[linestyleCounter],
-                 color=colors[colorCounter], linewidth=0.8)
-        linestyleCounter = 1 - linestyleCounter
-        colorCounter = (colorCounter + (7*linestyleCounter)) % 10
+    duplicatedColors = []
+    linestyles=['-', '--']
+    for color in mcolors.TABLEAU_COLORS:
+        duplicatedColors.append(color)
+        duplicatedColors.append(color)
+
+    for i in range(0, len(labels)):
+        label = labels[i]
+        xaxis = x[i]
+        yaxis = y[i]
+        plt.plot(xaxis, yaxis, label=label,
+                color = duplicatedColors[i % len(duplicatedColors)],
+                linestyle = linestyles[i % 2], linewidth=0.8)
 
     plt.xlabel('Miles')
     plt.ylabel('Mile Pace (minutes)')
     plt.grid()
     plt.title(title)
-    plt.legend()
+    plt.legend(loc='best')
     plt.show()
 
 ### ANALYSIS FUNCTIONS
@@ -157,7 +163,7 @@ def pacingIndividualParticipant(searchTerm, plotOutput=False):
     return mileMarkers, elapsedPace, splitPace
 
 # Returns a subset of field as dataframe and plots pacing
-# searchParams: SQL "WHERE" clauses (i.e. ..."gender LIKE 'F'" or "hours < 24")
+# searchParams: SQL "WHERE" clauses (i.e. ..."WHERE gender LIKE 'F'" or "WHERE hours < 24")
 def subsetOfField(searchParams, plotOutput=False):
 
     print("Connecting to database")
@@ -346,13 +352,10 @@ def main():
     while not endProgram:
         print("MAIN MENU")
         print("***********************")
-        print("(1) Lookup a Single Participant")
-        print("(2) Compare Participant to Field")
-        print("(3) Compare Two Participants")
-        print("(4) Plot Distribution of Finish Times")
-        print("(5) Lookup a Subset of Field")
-        print("(6) Finish Times By Age")
-        print("(7) Exit")
+        print("(1) Splits")
+        print("(2) Distribution of Finish Times")
+        print("(3) Finish Times By Age")
+        print("(4) Exit")
         cmd = str.strip(input(" > "))
 
         # Operational modes
@@ -360,85 +363,94 @@ def main():
 
             # Lookup a single participant
             case "1":
-                searchTerm = str.strip(input("Enter first name, last name, or bib number > "))
-                try:
-                    miles, elapsed, splits = pacingIndividualParticipant(searchTerm, plotOutput=True)
-                except TypeError:
-                    print("Participant not found using search terms: {}".format(searchTerm))
+                print("***********************")
+                print("PLOT SPLITS")
+                done = False    # specifies if user is done requesting data
+                labels = []     # labels for each line on final plot
+                xvals = []      # mile markers for final plot
+                yvals = []      # pacing at each mile marker for final plot
 
-            # Compare participant to field
-            case "2":
-                idvSearch = str.strip(input("Enter first name, last name, or bib number > "))
-                fieldSearch = str.strip(input("Enter SQL WHERE clause for entire field params, or ENTER for entire field > "))
-                try:
-                    try:
-                        idvMiles, idvElapsed, idvSplit = pacingIndividualParticipant(idvSearch)
-                        idvFirst, idvLast, idvBib = nameAndBibNumber(idvSearch)
-                    except TypeError:
-                        print("Cannot find participant by search terms: {}".format(idvSearch))
-                        raise TypeError
+                # main loop where user requests data to add
+                while not done:
+                    print("***********************")
+                    print("Select data to add: ")
+                    print("(1) Add participant")
+                    print("(2) Add field subset")
+                    print("(ANY KEY) Done adding data")
+                    mode = str.strip(input(" > "))
 
-                    title = 'Compare {} {} (Bib {}) to Field Subset \n {}'.format(idvFirst, idvLast, idvBib, fieldSearch)
+                    # add a participant
+                    if mode == "1":
+                        searchTerm = str.strip(input("Enter first name, last name, or bib number > "))
+                        try:
 
-                    df, oaMiles, oaElapsed, oaSplit = subsetOfField(fieldSearch)
+                            # get participant info
+                            miles, elapsed, splits = pacingIndividualParticipant(searchTerm)
+                            first, last, bib = nameAndBibNumber(searchTerm)
 
-                    plotPaceDistribution(title, IndividualElapsedPace=['{} Elapsed'.format(idvLast), idvMiles, idvElapsed],
-                                                IndividualSplitPace=['{} Split'.format(idvLast), idvMiles, idvSplit],
-                                                OverallElapsedPace=['Field Average Elapsed', oaMiles, oaElapsed],
-                                                OverallSplitPace=['Field Average Split', oaMiles, oaSplit])
-                except TypeError:
-                    pass
+                            # save info for later plots
+                            labels.append("{} {} - Elapsed".format(first, last))
+                            labels.append("{} {} - Split".format(first, last))
+                            xvals.append(miles)
+                            xvals.append(miles)
+                            yvals.append(elapsed)
+                            yvals.append(splits)
+                            print("{} {} added.".format(first, last))
+                        except TypeError:       # None will be returned if participant is not found
+                            print("Participant not found using search terms: {}".format(searchTerm))
 
-            # Compare participants
-            case "3":
-                search1 = str.strip(input("Enter first name or bib number > "))
-                search2 = str.strip(input("Enter second name or bib number > "))
-                try:
-                    try:
-                        mi1, elapsed1, split1 = pacingIndividualParticipant(search1)
-                        first1, last1, bib1 = nameAndBibNumber(search1)
-                    except TypeError:
-                        print("Cannot find participant by search terms {}".format(search1))
-                        raise TypeError
-                    try:
-                        mi2, elapsed2, split2 = pacingIndividualParticipant(search2)
-                        first2, last2, bib2 = nameAndBibNumber(search2)
-                    except TypeError:
-                        print("Cannot find participant by search terms {}".format(search2))
-                        raise TypeError
-                    plotTitle = 'WSER Pacing: {} (Bib {}) and {} (Bib {})'.format(last1, bib1, last2, bib2)
-                    plotPaceDistribution(plotTitle, ElapsedPace1=['{} Elapsed'.format(last1), mi1, elapsed1],
-                                         SplitPace1=['{} Split'.format(last1), mi1, split1],
-                                         ElapsedPace2=['{} Elapsed'.format(last2), mi2, elapsed2],
-                                         SplitPace2=['{} Split'.format(last2), mi2, split2])
-                except TypeError:
-                    pass
+                    # add a subset of field based on SQL search parameters
+                    elif mode == "2":
+                        args = str.strip(input("Enter SQL description of field subset (WHERE clause), or ENTER for entire field > "))
+                        try:
+                            df, miles, elapsed, splits = subsetOfField(args)        # get field subset data
+
+                            # Format label
+                            if args == "":
+                                label = "Entire Field"
+                            else:
+                                label = args.replace(" ", "")
+                                label = label.replace("AND", " & ")
+                                label = label.replace("OR", " / ")
+                                label = label.replace("LIKE", "=")
+                                if "WHERE" in label:
+                                    label = str.strip(label[5:])
+
+                            # Save data for plotting
+                            labels.append("{} - Elapsed".format(label))
+                            labels.append("{} - Split".format(label))
+                            xvals.append(miles)
+                            xvals.append(miles)
+                            yvals.append(elapsed)
+                            yvals.append(splits)
+                            print("Field subset added.")
+                        except TypeError:
+                            print("No subset of field found using search terms: {}".format(args))
+                    else:
+                        title = "WSER Splits"
+                        plotPaceDistribution(title, labels=labels, x=xvals, y=yvals)
+                        done = True
+
 
             # Plot finish time distribution
-            case "4":
+            case "2":
                 finishTimeDistributionByBins()
 
-            # Get statistical summary of a subset of field
-            case "5":
-                args = str.strip(input("Enter SQL search parameters > "))   # user inputs end of "where" clause
-                if "WHERE" in args:                           # but we design in case user types "WHERE" anyway
-                    args = str.strip(args[5:])
-                df, miles, elapsed, splits = subsetOfField(args, plotOutput=True)
-                display(df)
-                display(df.describe())
-
-            # Finish time by age
-            case "6":
+            # Finish times by age
+            case "3":
                 numBins = int(input("Enter number of age bins > "))
                 distributionByAge(numBins)
 
-            case "7":
+            # Plot finish time distribution
+            case "4":
                 print("Exiting program.")
                 endProgram = True
+
             case _:
                 print("Not a valid input.")
                 endProgram = True
-        print("***********************")
+        print("********************"
+              "***")
 
 
 if __name__ == "main":
