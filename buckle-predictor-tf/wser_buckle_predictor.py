@@ -25,6 +25,8 @@ import tensorflow as tf
 
 # Useful functions to format times
 def getHours(strTime):
+    if " " in strTime:
+      strTime= strTime[0:str.find(strTime," ")]
     if strTime == "nan" or "-" in strTime:
         return 30.0
     else:
@@ -32,7 +34,7 @@ def getHours(strTime):
         return float(strTime[0]) + float(strTime[1])/60.0 + float(strTime[2])/3600.0
 
 # Useful function to create input function to convert data to a tf.data.Dataset object
-def make_input_fn(data_df, label_df, num_epochs=32, shuffle=True, batch_size=32):
+def make_input_fn(data_df, label_df, num_epochs=100, shuffle=True, batch_size=32):
     def input_function():
         ds = tf.data.Dataset.from_tensor_slices((dict(data_df),label_df))
         if shuffle:
@@ -42,7 +44,7 @@ def make_input_fn(data_df, label_df, num_epochs=32, shuffle=True, batch_size=32)
     return input_function
 
 # Splits, features, labels
-aidStationNames = ['Lyon Ridge', 'Red Star Ridge', 'Duncan Canyon', 'Robinson Flat', "Miller's Defeat", 'Dusty Corners', "Last Chance", "Devil's Thumb", "El Dorado Creek", "Michigan Bluff"]
+aidStationNames = ['Lyon Ridge', 'Red Star Ridge', 'Duncan Canyon', 'Robinson Flat', "Miller's Defeat", 'Dusty Corners', "Last Chance", "Devil's Thumb", "El Dorado Creek", "Michigan Bluff", "Foresthill"]
 CATEGORICAL_COLUMNS = ['Gender']
 NUMERIC_COLUMNS = np.concatenate([['Age'], aidStationNames])
 features = np.concatenate([CATEGORICAL_COLUMNS, NUMERIC_COLUMNS])
@@ -90,3 +92,11 @@ linear_est.train(input_train_fn)
 result = linear_est.evaluate(input_test_fn)
 
 print(f"Accuracy: {result['accuracy']}")
+print(result)
+
+# Make predictions for every single point in the evaluation (test) dataset
+result = list(linear_est.predict(input_test_fn))
+print(f"Predicted vs. Actual Sub-{cutoff} Finishes in 2019")
+for i in range(0, len(result)):
+  finisher = result[i]
+  print(f"Finisher {i+1}: Sub-24 Probability = {finisher['probabilities'][1]}, Actual Time = {df_test['Time'][i]} Hours")
