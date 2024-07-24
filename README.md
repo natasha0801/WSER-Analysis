@@ -1,4 +1,4 @@
 Tools in this repository:
 
 - **Visualizations**: uses Python/SQL to create plots of finisher distributions as well as splits for individual finishers. The included file contains splits from 2023, but can be run with any historical data of the same format (available on the WSER website).
-- **Buckle Predictor**: uses Python/TensorFlow to predict whether finishers will earn a silver buckle (sub-24 hours). The model is trained on data from 2017-2018 and 2021-2022, and tested using data from 2019. The model is functional, but the project is still in progress (accuracy improvements, user interface, etc.)
+- **Buckle Predictor**: uses Python/TensorFlow to predict whether finishers will finish before a certain cutoff time. The model is trained on data from 2016-2023, including aid station splits, weather, and finisher age/gender category. To predict whether a finisher will beat a certain time, run wser-finish-predictor.py and input user data. Note that the aid station list can be modified depending which splits are available; however, using more splits (especially those later in the race) will yield more accurate results.
