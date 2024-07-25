@@ -1,3 +1,6 @@
+<h4>Western States Endurance Run Analysis</h4>
+So you spent a little too much time listening to Freetrail, and now your life goal is to run 100.2 miles through blistering heat and technical terrain, all to collapse on a high school track while someone hands you a belt-buckle. Congratulations! Me too! And now I'm using my engineering degree to obsess over this race.
+
 Tools in this repository:
 
 - **Visualizations**: uses Python/SQL to create plots of finisher distributions as well as splits for individual finishers. The included file contains splits from 2023, but can be run with any historical data of the same format (available on the WSER website).
