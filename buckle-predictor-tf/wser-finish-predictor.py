@@ -146,6 +146,22 @@ print(f"Training Set Size: {len(input_train)}")
 print(f"Target Cutoff: {cutoff} hrs")
 print(f"Accuracy: {result['accuracy']}")
 
+# Generate confusion matrix
+from sklearn import metrics
+result = list(linear_est.predict(input_test_fn))
+actual = []
+predicted = []
+for i in range(0, len(result)):
+  finisher = result[i]
+  predicted.append(int(round(finisher['probabilities'][1])))
+  actual.append(int(df_test['Time'][i] < cutoff))
+confusion_matrix = metrics.confusion_matrix(actual,predicted, normalize='true')
+cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix,
+                                            display_labels=[f'Over {cutoff}', f'Sub-{cutoff}'])
+cm_display.plot()
+plt.title(f'WSER Sub-{cutoff} Hour Predictor\nConfusion Matrix')
+plt.show()
+
 # Let user make a prediction
 print("---- PREDICT FINISH ----")
 
