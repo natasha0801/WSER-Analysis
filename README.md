@@ -1,5 +1,7 @@
 <h2>Western States Endurance Run Analysis</h2>
-So you spent a little too much time listening to Freetrail, and now your life goal is to run 100.2 miles through blistering heat and technical terrain, all to collapse on a high school track while someone hands you a belt-buckle. Congratulations! Me too! And now I'm using my engineering degree to obsess over this race.
+So you spent a little too much time listening to Freetrail, and now your life goal is to run 100.2 miles through blistering heat and technical terrain, all to collapse on a high school track while someone in a Hawaiian shirt hands you a belt-buckle and a stack of pancakes. Congratulations! Me too! 
+
+For most of us, many years of training, lottery tickets, and sheer luck stand between us and actually running Western States. For some of us (me), we are going stir-crazy with injury before we can even start on those aforementioned steps. But for now, I'm living vicariously through previous WSER athletes, and using my two engineering degrees to model how fast someone can run from Olympic Valley to Placer High School.
 
 <h4>Tools in this repository:</h4>
 
