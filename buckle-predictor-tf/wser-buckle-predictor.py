@@ -42,14 +42,18 @@ print("(3) Trail Nerd: as many splits as you have.")
 modelType = int(input("Model Type: "))
 if modelType == 1:                      # detailed model
   aidStationNames = ['Lyon Ridge', 'Red Star Ridge', 'Duncan Canyon', 'Robinson Flat', "Miller's Defeat", 'Dusty Corners', "Last Chance", "Devil's Thumb", "El Dorado Creek", "Michigan Bluff", "Foresthill"]
+  neurons = 11
 elif modelType ==2:                                   # simplified model
   aidStationNames = ['Robinson Flat', "Devil's Thumb", "Michigan Bluff"]
+  neurons = 8
 else:
   allAidStations = ['Lyon Ridge', 'Red Star Ridge', 'Duncan Canyon', 'Robinson Flat', "Miller's Defeat", 'Dusty Corners', "Last Chance", "Devil's Thumb", "El Dorado Creek", "Michigan Bluff", "Foresthill", "Rucky Chucky", "Auburn Lake Trails"]
   print("Select Latest Aid Station: ")
   for i in range(0, len(allAidStations)):
     print(f"({i+1}) {allAidStations[i]}")
   aidStationNames = allAidStations[0:int(input("> "))]
+  neurons = 8 + np.ceil(len(aidStationNames) / 3.0).astype(int)
+
 # Define features and labels
 features = np.concatenate([['Gender', 'Age', 'MinTemp', 'MaxTemp'], aidStationNames])
 labels=['Buckle']
@@ -104,8 +108,8 @@ for i in range(0, len(relevantSplits)):
     df_test[relevantSplits[i]] = df_test[relevantSplits[i]].apply(lambda x: getHours(str(x)))
 
 # Input data (features) in desired format
-input_train = df_train[features].copy().to_numpy(dtype=float).reshape([len(df_train[features]),1,len(features)])
-input_test = df_test[features].copy().to_numpy(dtype=float).reshape([len(df_test[features]),1,len(features)])
+input_train = df_train[features].copy().to_numpy(dtype=float)
+input_test = df_test[features].copy().to_numpy(dtype=float)
 
 # Output data (labels) in desired format
 buckleNames = ['silver', 'bronze', 'no buckle'];
@@ -118,8 +122,7 @@ output_test = output_test.copy().to_numpy(dtype=int)
 
 ######## BUILD AND COMPILE MODEL ########
 model = tf.keras.Sequential([
-    tf.keras.layers.Flatten(input_shape=(1,len(features))),
-    tf.keras.layers.Dense(11, activation='relu'),
+    tf.keras.layers.Dense(neurons, activation='relu'),
     tf.keras.layers.Dense(3)
 ])
 model.compile(optimizer='adam',
@@ -169,7 +172,7 @@ while (predictRunner):
   for aid in range(0, len(aidStationNames)):
     inputFeatures.append(getHours(input(f"Split at {aidStationNames[aid]} (hh:mm:ss): ")))
 
-  inputFeatures = np.array(inputFeatures).reshape([1,1,len(inputFeatures)])
+  inputFeatures = np.array(inputFeatures).reshape(1, len(inputFeatures))
 
   # Predict
   prediction = probability_model.predict(inputFeatures)
