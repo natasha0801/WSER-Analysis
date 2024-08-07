@@ -36,14 +36,20 @@ def getHours(strTime):
 
 # Get user input for what type of model we want to run
 print("---- SELECT MODEL TYPE ----")
-print("(1) Silicon Valley Nerd: needs lots of splits, but is a bit more accurate.")
-print("(2) Quick-And-Dirty: needs only 3 splits, but may be less accurate.")
+print("(1) Silicon Valley Nerd: needs lots of splits up to Foresthill, but is a bit more accurate.")
+print("(2) Quick-And-Dirty: needs only 3 splits up to Michigan Bluff, but may be less accurate.")
+print("(3) Trail Nerd: as many splits as you have.")
 modelType = int(input("Model Type: "))
 if modelType == 1:                      # detailed model
   aidStationNames = ['Lyon Ridge', 'Red Star Ridge', 'Duncan Canyon', 'Robinson Flat', "Miller's Defeat", 'Dusty Corners', "Last Chance", "Devil's Thumb", "El Dorado Creek", "Michigan Bluff", "Foresthill"]
-else:                                   # simplified model
+elif modelType ==2:                                   # simplified model
   aidStationNames = ['Robinson Flat', "Devil's Thumb", "Michigan Bluff"]
-
+else:
+  allAidStations = ['Lyon Ridge', 'Red Star Ridge', 'Duncan Canyon', 'Robinson Flat', "Miller's Defeat", 'Dusty Corners', "Last Chance", "Devil's Thumb", "El Dorado Creek", "Michigan Bluff", "Foresthill", "Rucky Chucky", "Auburn Lake Trails"]
+  print("Select Latest Aid Station: ")
+  for i in range(0, len(allAidStations)):
+    print(f"({i+1}) {allAidStations[i]}")
+  aidStationNames = allAidStations[0:int(input("> "))]
 # Define features and labels
 features = np.concatenate([['Gender', 'Age', 'MinTemp', 'MaxTemp'], aidStationNames])
 labels=['Buckle']
@@ -161,7 +167,7 @@ while (predictRunner):
   inputFeatures.append(float(input("Low Temperature (F): ")))
   inputFeatures.append(float(input("High Temperature (F): ")))
   for aid in range(0, len(aidStationNames)):
-    inputFeatures.append(getHours(input(f"Split at {aidStationNames[aid]} (hh:mm:ss):")))
+    inputFeatures.append(getHours(input(f"Split at {aidStationNames[aid]} (hh:mm:ss): ")))
 
   inputFeatures = np.array(inputFeatures).reshape([1,1,len(inputFeatures)])
 
