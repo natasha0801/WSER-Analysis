@@ -21,16 +21,19 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
+from sklearn.preprocessing import StandardScaler
 
 # Function to format times
 def getHours(strTime):
-    if " " in strTime:
-      strTime= strTime[0:str.find(strTime," ")]
-    if strTime == "nan" or "-" in strTime:
-        return 30.0
-    else:
-        strTime = str.split(strTime,':')
-        return float(strTime[0]) + float(strTime[1])/60.0 + float(strTime[2])/3600.0
+  if "-" in strTime:
+    strTime = strTime[0:str.find(strTime,"-")]
+  if " " in strTime:
+    strTime= strTime[0:str.find(strTime," ")]
+  if strTime == "nan" or len(strTime) == 0:
+      return 30.0
+  else:
+      strTime = str.split(strTime,':')
+      return float(strTime[0]) + float(strTime[1])/60.0 + float(strTime[2])/3600.0
 
 ######## DEFINE FEATURES AND LABELS ########
 
@@ -89,6 +92,7 @@ df_individual = []
 for year in range(startTrain,endTrain+1):
   if year != testYear and year != 2020:
     df = pd.read_csv(f'wser{year}.csv')
+    df = df.rename(columns={"Devils Thumb": "Devil's Thumb", "Foresthill School": "Foresthill", "Millers Defeat": "Miller's Defeat"})
     df['MaxTemp'] = temps[year][0]
     df['MinTemp'] = temps[year][1]
     df_individual.append(df)
@@ -110,6 +114,7 @@ for i in range(0, len(relevantSplits)):
 # Input data (features) in desired format
 input_train = df_train[features].copy().to_numpy(dtype=float)
 input_test = df_test[features].copy().to_numpy(dtype=float)
+print(input_train.shape)
 
 # Output data (labels) in desired format
 buckleNames = ['silver', 'bronze', 'no buckle'];
@@ -119,6 +124,11 @@ output_train = df_train["Time"].apply(lambda x: np.where([x < silver, silver <= 
 output_test= df_test['Time'].apply(lambda x: np.where([x < silver, silver <= x and x < bronze, x >= bronze])[0]).astype(int)
 output_train = output_train.copy().to_numpy(dtype=int)
 output_test = output_test.copy().to_numpy(dtype=int)
+
+# Normalize
+scaler = StandardScaler()
+input_train = scaler.fit_transform(input_train)
+input_test = scaler.transform(input_test)
 
 ######## BUILD AND COMPILE MODEL ########
 model = tf.keras.Sequential([
@@ -157,9 +167,6 @@ if showTestCases == 'Y':
     print(f"Actual: {buckleNames[actual]}")
 
 ######## MAKE PREDICTIONS USING USER INPUT ########
-
-predictRunner = False
-
 predictRunner = True if str.upper(input('Predict buckle for specific athlete? Y/N: ').strip()) == 'Y' else False
 
 while (predictRunner):
@@ -171,11 +178,10 @@ while (predictRunner):
   inputFeatures.append(float(input("High Temperature (F): ")))
   for aid in range(0, len(aidStationNames)):
     inputFeatures.append(getHours(input(f"Split at {aidStationNames[aid]} (hh:mm:ss): ")))
-
-  inputFeatures = np.array(inputFeatures).reshape(1, len(inputFeatures))
-
   # Predict
-  prediction = probability_model.predict(inputFeatures)
+  inputFeatures = np.array(inputFeatures).reshape(1,len(inputFeatures))
+  inputFeaturesScaled = scaler.transform(inputFeatures)
+  prediction = probability_model.predict(inputFeaturesScaled)
   print(f"Based on provided input data, expected buckle is {str.upper(buckleNames[np.argmax(prediction)])}.")
   print("Probabilities: {:2.0f}% silver, {:2.0f}% bronze, {:2.0f}% no buckle".format(100*prediction[0][0], 100*prediction[0][1], 100*prediction[0][2]))
   predictRunner = True if str.upper(input('Predict another athlete? Y/N: ').strip()) == 'Y' else False
