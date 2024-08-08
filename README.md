@@ -6,7 +6,7 @@ For most of us, many years of training, lottery tickets, and sheer luck stand be
 <h4>Tools in this repository:</h4>
 
 <ul>
-      <li><b>Buckle Predictor</b>: uses Python/TensorFlow to predict whether finishers will finish before a certain cutoff time. The model is trained on data from 2016-2023, including aid station splits, weather, and finisher age/gender category.
+      <li><b>Buckle Predictor</b>: uses Python/TensorFlow to predict finish time/category. The model is trained on data from 2016-2023, including aid station splits, weather, and finisher age/gender category.
       <ul>
             <li>To predict whether a finisher will beat a certain time, run wser-finish-predictor.py and input user data.</li>
             <li>To predict which buckle a runner will earn (if any), run wser-buckle-predictor.py and input user data.</li>
