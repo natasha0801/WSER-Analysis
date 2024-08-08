@@ -6,7 +6,6 @@ For most of us, many years of training, lottery tickets, and sheer luck stand be
 <h4>Tools in this repository:</h4>
 
 <ul>
-      <li><b>Visualizations</b>: uses Python/SQL to create plots of finisher distributions as well as splits for individual finishers. The included file contains splits from 2023, but can be run with any historical data of the same format (available on the WSER website).</li>
       <li><b>Buckle Predictor</b>: uses Python/TensorFlow to predict whether finishers will finish before a certain cutoff time. The model is trained on data from 2016-2023, including aid station splits, weather, and finisher age/gender category.
       <ul>
             <li>To predict whether a finisher will beat a certain time, run wser-finish-predictor.py and input user data.</li>
@@ -14,4 +13,5 @@ For most of us, many years of training, lottery tickets, and sheer luck stand be
             <li>Note that the aid station list can be modified depending which splits are available; however, using more splits (especially those later in the race) will yield more accurate results.</li>
       </ul>
       </li>
+      <li><b>Visualizations</b>: uses Python/SQL to create plots of finisher distributions as well as splits for individual finishers. The included file contains splits from 2023, but can be run with any historical data of the same format (available on the WSER website).</li>
 </ul>
