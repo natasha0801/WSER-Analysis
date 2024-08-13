@@ -45,7 +45,7 @@ print("(3) Trail Nerd: as many splits as you have.")
 modelType = int(input("Model Type: "))
 if modelType == 1:                      # detailed model
   aidStationNames = ['Lyon Ridge', 'Red Star Ridge', 'Duncan Canyon', 'Robinson Flat', "Miller's Defeat", 'Dusty Corners', "Last Chance", "Devil's Thumb", "El Dorado Creek", "Michigan Bluff", "Foresthill"]
-  neurons = 11
+  neurons = 12
 elif modelType ==2:                                   # simplified model
   aidStationNames = ['Robinson Flat', "Devil's Thumb", "Michigan Bluff"]
   neurons = 8
@@ -58,12 +58,12 @@ else:
   neurons = 8 + np.ceil(len(aidStationNames) / 3.0).astype(int)
 
 # Define features and labels
-features = np.concatenate([['Gender', 'Age', 'MinTemp', 'MaxTemp'], aidStationNames])
+features = np.concatenate([['Gender', 'Age', 'MinTemp', 'MaxTemp', 'Snow'], aidStationNames])
 labels=['Buckle']
 
 ######## LOAD TRAINING AND TESTING DATA ########
 
-# Temperature data
+# Temperature data (F, max and min) (from https://www.wser.org/weather/)
 temps = {
     2024: [94, 63],
     2023: [80, 51],
@@ -82,26 +82,52 @@ temps = {
     2010: [91, 66]
 }
 
+# Snowpack (in) (from https://www.wser.org/weather/)
+snow = {
+    2024: 0,
+    2023: 6.3,
+    2022: 0,
+    2021: 0,
+    2020: 0,
+    2019: 19.6,
+    2018: 0,
+    2017: 22.0,
+    2016: 0,
+    2015: 0,
+    2014: 0,
+    2013: 0,
+    2012: 0,
+    2011: 60.9,
+    2010: 17.3
+}
+
 # Define time ranges for available data
-startTrain = 2016
+# Do NOT train or test on "snow route" years (2010-2011), COVID year (2020), or 2008 (no splits available)
+startTrain = 2012
 endTrain = 2023
-testYear = 2022
+testYear = 2015
 
 # Populate training dataframe
 df_individual = []
 for year in range(startTrain,endTrain+1):
-  if year != testYear and year != 2020:
+  if year != testYear and year != 2020 and year != 2010 and year != 2011 and year != 2008:
     df = pd.read_csv(f'wser{year}.csv')
     df = df.rename(columns={"Devils Thumb": "Devil's Thumb", "Foresthill School": "Foresthill", "Millers Defeat": "Miller's Defeat"})
     df['MaxTemp'] = temps[year][0]
     df['MinTemp'] = temps[year][1]
+    df['Snow'] = snow[year]
+    if np.isnan(float(df.iloc[:1]['Overall Place'])):   # some early CSV files have double rows of headers
+      df = df.drop([0])
     df_individual.append(df)
+
 df_train = pd.concat(df_individual)
 
 # Populate test dataframe
 df_test = pd.read_csv(f'wser{testYear}.csv')
+df_test = df_test.rename(columns={"Devils Thumb": "Devil's Thumb", "Foresthill School": "Foresthill", "Millers Defeat": "Miller's Defeat"})
 df_test['MaxTemp'] = temps[year][0]
 df_test['MinTemp'] = temps[year][1]
+df_test['Snow'] = snow[year]
 
 # Format everything as an int/float
 relevantSplits = np.concatenate([aidStationNames, ["Time"]])
@@ -114,7 +140,6 @@ for i in range(0, len(relevantSplits)):
 # Input data (features) in desired format
 input_train = df_train[features].copy().to_numpy(dtype=float)
 input_test = df_test[features].copy().to_numpy(dtype=float)
-print(input_train.shape)
 
 # Output data (labels) in desired format
 buckleNames = ['silver', 'bronze', 'no buckle'];
@@ -133,6 +158,8 @@ input_test = scaler.transform(input_test)
 ######## BUILD AND COMPILE MODEL ########
 model = tf.keras.Sequential([
     tf.keras.layers.Dense(neurons, activation='relu'),
+    tf.keras.layers.Dropout(0.1),
+    tf.keras.layers.Dense(np.ceil(neurons/2).astype(int), activation='relu'),
     tf.keras.layers.Dense(3)
 ])
 model.compile(optimizer='adam',
@@ -143,8 +170,9 @@ model.compile(optimizer='adam',
 
 # Train
 print("Training model...")
-num_epochs=40
-model.fit(input_train, output_train, epochs=num_epochs)
+num_epochs=60
+batch_size=32
+model.fit(input_train, output_train, epochs=num_epochs, batch_size=batch_size)
 
 # Evaluate accuracy
 test_loss, test_accuracy = model.evaluate(input_test, output_test, verbose=0)
@@ -176,6 +204,7 @@ while (predictRunner):
   inputFeatures.append(int(input("Age: ")))
   inputFeatures.append(float(input("Low Temperature (F): ")))
   inputFeatures.append(float(input("High Temperature (F): ")))
+  inputFeatures.append(float(input("Snowpack at Olympic Valley (in): ")))
   for aid in range(0, len(aidStationNames)):
     inputFeatures.append(getHours(input(f"Split at {aidStationNames[aid]} (hh:mm:ss): ")))
   # Predict
