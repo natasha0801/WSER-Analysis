@@ -45,9 +45,10 @@ def hoursToString(hrs):
   seconds = seconds - 60*minutes
   return "%02d:%02d:%02.1f"%(hours,minutes,seconds)
 
+######## USER INPUTS ########
 # Get input labels
 print("Select location of target split: ")
-aidStations = ['Duncan Canyon', 'Robinson Flat', "Miller's Defeat", "Dusty Corners", "Devil's Thumb", 'El Dorado Creek', 'Michigan Bluff', 'Foresthill', 'Rucky Chucky', 'Auburn Lake Trails']
+aidStations = ['Robinson Flat', "Miller's Defeat", "Dusty Corners", "Devil's Thumb", 'El Dorado Creek', 'Michigan Bluff', 'Foresthill', 'Rucky Chucky']
 for j in range(0, len(aidStations)):
   print(f"({j+1}) {aidStations[j]}")
 
@@ -137,7 +138,7 @@ columnRenames = {"Elapsed Time": "Time",
                  "Foresthill School": "Foresthill",
                  "Millers Defeat": "Miller's Defeat",
                  'Rucky Chucky (near)': 'Rucky Chucky',
-                 'Duncan Canyon Arrived': 'Duncan Canyon',
+                 'Duncan Canyon Arrived ': 'Duncan Canyon',
                  'Robinson Flat Arrived': 'Robinson Flat',
                  "Miller's Defeat Arrive": "Miller's Defeat",
                  "Dusty Corners Arrive": "Dusty Corners",
@@ -146,19 +147,24 @@ columnRenames = {"Elapsed Time": "Time",
                  "El Dorado Creek Arrive": "El Dorado Creek",
                  "Michigan Bluff Arrive": "Michigan Bluff",
                  "Foresthill School Arrive": "Foresthill",
+                 "River Crossing (Near)": "Rucky Chucky",
                  "Rucky Chuck (near) Arrive": "Rucky Chucky",
                  "Auburn Lake Trails Arrive": "Auburn Lake Trails",
-
+                 "El Dorado Canyon": "El Dorado Creek",
+                 'ALT': 'Auburn Lake Trails',
                  "Gen": "Gender"}
 
 
 # Populate dataframes
 df_train = []
 df_test = []
+skipyears = [2020, 2008]
+if targetAidStation == 'Robinson Flat':
+  skipyears.append(2011)
+  skipyears.append(2012)
+
 for year in range(startTrain,endTrain+1):
-
-  if year != 2020 and year != 2008: # skip cancelled years
-
+  if (year not in skipyears):
     # Account for formatting of different years headers'
     skiprows=0
     if year <= 2009:
@@ -177,7 +183,7 @@ for year in range(startTrain,endTrain+1):
     for i in range(0, len(keyAidStations)):
       df[keyAidStations[i]] = df[keyAidStations[i]].apply(lambda x: getHours(str(x)))
       if year <= 2009:
-        df[keyAidStations[i]] = df[keyAidStations[i]].apply(lambda x: x - 5)
+        df[keyAidStations[i]] = df[keyAidStations[i]].apply(lambda x: x - 5)    # prior to 2010, splits are formatted as time of day (account for 5am start)
     df["Time"] = df["Time"].apply(lambda x: getHours(str(x)))
 
     # Format gender
@@ -210,8 +216,8 @@ normalizer = tf.keras.layers.Normalization(axis=-1) # create pre-processing laye
 normalizer.adapt(np.array(input_train))             # fit state of pre-processing layer to data
 model = tf.keras.Sequential([
     normalizer,
-    tf.keras.layers.Dense(64, activation='relu'),
-    tf.keras.layers.Dropout(0.05),
+    tf.keras.layers.Dense(48, activation='relu'),
+    tf.keras.layers.Dropout(0.1),
     tf.keras.layers.Dense(32, activation='relu'),
     tf.keras.layers.Dense(units=len(labels))
 ])
@@ -223,10 +229,14 @@ model.compile(
 
 # Fit model
 print("Training model...")
+if aidStationNumber < 8:
+  epochs = 48
+else:
+  epochs = 24
 history = model.fit(
     input_train,
     output_train,
-    epochs=50,
+    epochs=epochs,
     verbose=1,
     validation_split=0.15
 )
