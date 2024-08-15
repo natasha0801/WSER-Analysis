@@ -6,8 +6,9 @@ For most of us, many years of training, lottery tickets, and sheer luck stand be
 <h4>Tools in this repository:</h4>
 
 <ul>
-      <li><b>Buckle Predictor</b>: uses Python/TensorFlow to predict finish time/category. The model is trained on data from 2016-2023, including aid station splits, weather, and finisher age/gender category.
+      <li><b>Buckle Predictor</b>: uses Python/TensorFlow to predict finish time/category. Models are trained on data from 2007-2023, including aid station splits, weather, and finisher age/gender category.
       <ul>
+            <li>To estimate target splits for a given aid station, run wser-splits.py and input user data.</li>
             <li>To predict whether a finisher will beat a certain time, run wser-finish-predictor.py and input user data.</li>
             <li>To predict which buckle a runner will earn (if any), run wser-buckle-predictor.py and input user data.</li>
             <li>Note that the aid station list can be modified depending which splits are available; however, using more splits (especially those later in the race) will yield more accurate results.</li>
