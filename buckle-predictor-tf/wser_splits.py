@@ -23,7 +23,11 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from sklearn.preprocessing import StandardScaler
 
-# Functions to format times
+# Error Codes
+ERR_MINMAX = lambda min, max: f"Please enter a valid number from {min} to {max}."
+ERR_NUMBER = f"Please enter a valid number."
+
+# Convert hh:mm:ss to hours
 def getHours(strTime):
   if "-" in strTime:
     strTime = strTime[0:str.find(strTime,"-")]
@@ -37,6 +41,7 @@ def getHours(strTime):
         strTime.append('00')
       return float(strTime[0]) + float(strTime[1])/60.0 + float(strTime[2])/3600.0
 
+# Convert hours to hh:mm:ss
 def hoursToString(hrs):
   hours = np.floor(hrs).astype(int)
   fractionalHour = hrs - hours
@@ -45,27 +50,41 @@ def hoursToString(hrs):
   seconds = seconds - 60*minutes
   return "%02d:%02d:%02.1f"%(hours,minutes,seconds)
 
+# Get numerical input
+def getNumericalInput(prompt):
+  while True:
+    try:
+      feature = float(input(prompt))
+      break
+    except:
+      print(ERR_NUMBER)
+  return feature
+
 ######## USER INPUTS ########
 # Get input labels
 print("Select location of target split: ")
-aidStations = ['Robinson Flat', "Miller's Defeat", "Dusty Corners", "Devil's Thumb", 'El Dorado Creek', 'Michigan Bluff', 'Foresthill', 'Rucky Chucky']
+aidStations = ['Robinson Flat', "Miller's Defeat", "Dusty Corners", "Devil's Thumb", 'El Dorado Creek', 'Michigan Bluff', 'Foresthill', 'Rucky Chucky', 'Auburn Lake Trails']
 for j in range(0, len(aidStations)):
   print(f"({j+1}) {aidStations[j]}")
 
-aidStationNumber = -1
-while aidStationNumber < 1 or aidStationNumber > len(aidStations):
-  aidStationNumber = int(input("> "))
-  if aidStationNumber < 1 or aidStationNumber > len(aidStations):
-    print("Please enter a valid aid station number.")
+while True:
+  try:
+    aidStationNumber = int(input("> "))
+    if aidStationNumber < 1 or aidStationNumber > len(aidStations):
+      print(ERR_MINMAX(1,len(aidStations)))
+    else:
+      break;
+  except:
+    print(ERR_MINMAX(1,len(aidStations)))
 targetAidStation = aidStations[aidStationNumber-1]
 
 # Get input features
 inputFeatures = []
-inputFeatures.append(1.0 if str.upper(input("Gender Category (M/F): ")).strip() == 'M' else 0.0)
-inputFeatures.append(int(input("Age: ")))
-inputFeatures.append(float(input("Low Temperature (F): ")))
-inputFeatures.append(float(input("High Temperature (F): ")))
-inputFeatures.append(float(input("Snowpack at Olympic Valley (in): ")))
+inputFeatures.append(1.0 if str.upper(input("Gender Category (M/F): ")).strip() == 'M' else 0.0)    # gender
+inputFeatures.append(getNumericalInput("Age: "))
+inputFeatures.append(getNumericalInput("Low Temperature (F): "))
+inputFeatures.append(getNumericalInput("High Temperature (F): "))
+inputFeatures.append(getNumericalInput("Snowpack at Olympic Valley (in): "))
 inputFeatures.append(getHours(input("Target Finish Time (hh:mm:ss): ")))
 
 ######## DEFINE FEATURES AND LABELS ########
@@ -211,14 +230,35 @@ input_test = df_test[features].copy().to_numpy(dtype=float)
 output_train = df_train[labels].copy().to_numpy(dtype=float)
 output_test= df_test[labels].copy().to_numpy(dtype=float)
 
+######## DEFINE MODEL PROPERTIES ########
+# keys --> aid station number
+# values --> epochs, layer 1, layer 2
+modelProperties = {
+    1: [32,24,16],
+    2: [32,48,32],
+    3: [48,48,32],
+    4: [48,48,32],
+    5: [48,32,32],
+    6: [48,48,32],
+    7: [48,48,32],
+    8: [24,32,16],
+    9: [24,14,8]
+}
+
 ######## CREATE REGRESSION MODEL ########
 normalizer = tf.keras.layers.Normalization(axis=-1) # create pre-processing layer
 normalizer.adapt(np.array(input_train))             # fit state of pre-processing layer to data
+
+# Load model properties from dictionary
+epochs = modelProperties[aidStationNumber][0]
+layer1 = modelProperties[aidStationNumber][1]
+layer2 = modelProperties[aidStationNumber][2]
+
 model = tf.keras.Sequential([
     normalizer,
-    tf.keras.layers.Dense(48, activation='relu'),
+    tf.keras.layers.Dense(layer1, activation='relu'),
     tf.keras.layers.Dropout(0.1),
-    tf.keras.layers.Dense(32, activation='relu'),
+    tf.keras.layers.Dense(layer2, activation='relu'),
     tf.keras.layers.Dense(units=len(labels))
 ])
 
@@ -229,10 +269,6 @@ model.compile(
 
 # Fit model
 print("Training model...")
-if aidStationNumber < 8:
-  epochs = 48
-else:
-  epochs = 24
 history = model.fit(
     input_train,
     output_train,
